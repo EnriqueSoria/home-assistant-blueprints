@@ -1,0 +1,87 @@
+blueprint:
+  name: Climate Device On Reminder Loop Until Off (Testable Delay)
+  description: >
+    When a climate device is set to a non-off HVAC mode (like heat/cool), wait X seconds, then send an actionable notification
+    to turn it off or delay. Loops until the device is off.
+  domain: automation
+  input:
+    target_climate:
+      name: Target Climate Device
+      description: The climate device to monitor
+      selector:
+        entity:
+          domain: climate
+    delay_seconds:
+      name: Delay Seconds
+      description: Number of seconds to wait before sending the notification (supports decimals for testing)
+      default: 600
+      selector:
+        number:
+          min: 1
+          max: 3600
+          step: 1
+          unit_of_measurement: seconds
+
+mode: restart
+
+trigger:
+  - platform: state
+    entity_id: !input target_climate
+    to:
+      - "heat"
+      - "cool"
+      - "heat_cool"
+      - "auto"
+      - "dry"
+      - "fan_only"
+
+condition: []
+
+action:
+  - repeat:
+      until:
+        - condition: state
+          entity_id: !input target_climate
+          state: "off"
+          attribute: hvac_mode
+
+      sequence:
+        - delay:
+            seconds: !input delay_seconds
+        - if:
+            - condition: template
+              value_template: >
+                {{ not is_state_attr(states('!input target_climate'), 'hvac_mode', 'off') }}
+          then:
+            - service: notify.notify
+              data:
+                message: "Climate device is still on. Turn off?"
+                title: "Climate Device Still On"
+                data:
+                  actions:
+                    - action: "TURN_OFF"
+                      title: "Turn Off"
+                    - action: "DELAY"
+                      title: "Remind Me Later"
+                  tag: "reminder-turn-off"
+
+            - wait_for_trigger:
+                - platform: event
+                  event_type: mobile_app_notification_action
+                  event_data:
+                    action: TURN_OFF
+                - platform: event
+                  event_type: mobile_app_notification_action
+                  event_data:
+                    action: DELAY
+
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ wait.trigger.event.data.action == 'TURN_OFF' }}"
+                  sequence:
+                    - service: climate.set_hvac_mode
+                      target:
+                        entity_id: !input target_climate
+                      data:
+                        hvac_mode: "off"
