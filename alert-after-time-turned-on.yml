@@ -1,71 +1,81 @@
 blueprint:
-  name: Notification to turn off device after a specified time
-  description: This blueprint allows you to set a timer to turn off a device after a specified time, with notification and postponing options.
+  name: Device On Reminder Loop
+  description: >
+    When a device is turned on, this automation waits X hours, then sends an actionable notification
+    that gives the option to turn the device off or delay for another X hours (looping until turned off).
   domain: automation
   input:
-    device:
-      name: Device to control
-      description: The device that should be turned off after some time.
+    target_device:
+      name: Target Device
+      description: The switch or device to monitor
       selector:
         entity:
-          domain: light
-    trigger_state:
-      name: State to trigger the timer
-      description: The state change to trigger the timer (usually "on").
-      default: "on"
-      selector:
-        text:
-    timer_duration:
-      name: Timer Duration
-      description: How long (in seconds) before the reminder is triggered.
-      default: 180
+          domain: switch
+    delay_hours:
+      name: Delay Hours
+      description: Number of hours to wait before sending notification
+      default: 1
       selector:
         number:
-          min: 1
-          max: 3600
-          unit_of_measurement: seconds
-  
+          min: 0.5
+          max: 24
+          step: 0.5
+          unit_of_measurement: hours
+    notify_device:
+      name: Notify Device
+      description: The device to send the actionable notification to
+      selector:
+        device:
+          integration: mobile_app
+
+mode: restart
+
+variables:
+  delay_seconds: "{{ (delay_hours | float * 3600) | int }}"
+
 trigger:
   - platform: state
-    entity_id: !input 'device'
-    to: !input 'trigger_state'
+    entity_id: !input target_device
+    to: "on"
 
 action:
   - repeat:
+      while:
+        - condition: state
+          entity_id: !input target_device
+          state: "on"
       sequence:
-        - delay: 
-            seconds: !input 'timer_duration'
-        - data:
-            message: >-
-              ⚠️ The device has been running for more than {{ delay_seconds }} seconds.
-              You can choose to turn it off or reset the timer.
+        - delay:
+            seconds: "{{ delay_seconds }}"
+        - service: notify.mobile_app_{{ device_id('notify_device') }}
+          data:
+            message: "{{ state_attr(target_device, 'friendly_name') or target_device }} has been on for {{ delay_hours }} hours."
+            title: "Device Reminder"
             data:
               actions:
-                - action: turn_off_device
-                  title: Turn Off Device
-                - action: postpone_reminder
-                  title: Postpone reminder
-          action: notify.notify
+                - action: "TURN_OFF"
+                  title: "Turn Off"
+                - action: "DELAY"
+                  title: "Remind Me Later"
+              tag: "device-reminder-{{ target_device }}"
+
         - wait_for_trigger:
-            - event_type: mobile_app_notification_action
+            - platform: event
+              event_type: mobile_app_notification_action
               event_data:
-                action: turn_off_device
-              trigger: event
-            - event_type: mobile_app_notification_action
+                action: TURN_OFF
+            - platform: event
+              event_type: mobile_app_notification_action
               event_data:
-                action: postpone_reminder
-              trigger: event
-          continue_on_timeout: false
-        - if:
-            - condition: template
-              value_template: "{{ wait.trigger.event.data.action == 'turn_off_device' }}"
-          then:
-            - entity_id: !input 'device'
-              action: homeassistant.turn_off
-      until:
-        - condition: device
-          type: is_off
-          device_id: !input 'device'
-          entity_id: !input 'device'
-          domain: light
-mode: restart
+                action: DELAY
+          timeout: "01:00:00"
+          continue_on_timeout: true
+
+        - choose:
+            - conditions:
+                - condition: template
+                  value_template: "{{ wait.trigger.event.data.action == 'TURN_OFF' }}"
+              sequence:
+                - service: switch.turn_off
+                  target:
+                    entity_id: !input target_device
