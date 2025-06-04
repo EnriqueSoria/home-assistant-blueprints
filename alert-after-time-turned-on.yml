@@ -43,11 +43,10 @@ trigger:
 action:
   - repeat:
       until:
-        - condition: device
-          type: is_off
+        - condition: state
           entity_id: !input target_device
-          device_id: !input target_device
-          domain: light
+          state: "off"
+
       sequence:
         - delay:
             seconds: "{{ delay_seconds }}"
