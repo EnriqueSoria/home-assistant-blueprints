@@ -38,7 +38,7 @@ action:
 
       sequence:
         - delay:
-            seconds: delay_hours
+            seconds: {{ delay_hours }}
 
         - service: notify.notify
           data:
