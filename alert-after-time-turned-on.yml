@@ -39,34 +39,38 @@ action:
       sequence:
         - delay:
             seconds: !input delay_hours
-
-        - service: notify.notify
-          data:
-            message: "Turn off?"
-            title: "Device Still On"
-            data:
-              actions:
-                - action: "TURN_OFF"
-                  title: "Turn Off"
-                - action: "DELAY"
-                  title: "Remind Me Later"
-              tag: "reminder-turn-off"
-
-        - wait_for_trigger:
-            - platform: event
-              event_type: mobile_app_notification_action
-              event_data:
-                action: TURN_OFF
-            - platform: event
-              event_type: mobile_app_notification_action
-              event_data:
-                action: DELAY
-
-        - choose:
-            - conditions:
-                - condition: template
-                  value_template: "{{ wait.trigger.event.data.action == 'TURN_OFF' }}"
-              sequence:
-                - service: switch.turn_off
-                  target:
-                    entity_id: !input target_device
+        - if:
+            - condition: state
+              entity_id: !input target_device
+              state: "on"
+          then:
+              - service: notify.notify
+                data:
+                  message: "Turn off?"
+                  title: "Device Still On"
+                  data:
+                    actions:
+                      - action: "TURN_OFF"
+                        title: "Turn Off"
+                      - action: "DELAY"
+                        title: "Remind Me Later"
+                    tag: "reminder-turn-off"
+      
+              - wait_for_trigger:
+                  - platform: event
+                    event_type: mobile_app_notification_action
+                    event_data:
+                      action: TURN_OFF
+                  - platform: event
+                    event_type: mobile_app_notification_action
+                    event_data:
+                      action: DELAY
+      
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ wait.trigger.event.data.action == 'TURN_OFF' }}"
+                    sequence:
+                      - service: switch.turn_off
+                        target:
+                          entity_id: !input target_device
