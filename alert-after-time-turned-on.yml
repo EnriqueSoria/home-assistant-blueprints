@@ -24,10 +24,6 @@ blueprint:
 
 mode: restart
 
-variables:
-  delay_seconds: delay_hours
-  target_entity: !input target_device
-
 trigger:
   - platform: state
     entity_id: !input target_device
@@ -42,11 +38,11 @@ action:
 
       sequence:
         - delay:
-            seconds: delay_seconds
+            seconds: delay_hours
 
         - service: notify.notify
           data:
-            message: "{{ state_attr(target_entity, 'friendly_name') or target_entity }} has been on for {{ delay_hours }} hours."
+            message: "Turn off?"
             title: "Device Still On"
             data:
               actions:
