@@ -14,11 +14,6 @@ blueprint:
       default: 'on'
       selector:
         text:
-    notify_entity:
-      name: Notify Entity
-      description: The notification service to alert when the device runs for the specified duration
-      selector:
-        entity:
     device_timer_duration:
       name: Timer Duration
       description: The time before the alert triggers (default 3 hours)
@@ -33,6 +28,6 @@ trigger:
     for: !input 'device_timer_duration'
 
 action:
-  - service: !input 'notify_entity'
+  - service: notify.notify
     data:
       message: "⚠️ The device has been running for more than the specified duration."
