@@ -1,6 +1,6 @@
 blueprint:
-  name: Device Usage Alert After 3 Hours
-  description: Sends an alert when a device has been running for more than a specified amount of time.
+  name: Notification to turn off device after some time turned on
+  description: Sends an alert when a device has been running for more than a specified amount of time. Includes options to turn off the device or reset the timer.
   domain: automation
   input:
     device_entity:
@@ -14,6 +14,12 @@ blueprint:
       default: 'on'
       selector:
         text:
+    notify_entity:
+      name: Notify Entity
+      description: The notification service to alert when the device runs for the specified duration
+      selector:
+        entity:
+          domain: notify
     device_timer_duration:
       name: Timer Duration
       description: The time before the alert triggers (default 3 hours)
@@ -28,6 +34,41 @@ trigger:
     for: !input 'device_timer_duration'
 
 action:
-  - service: notify.notify
+  - service: !input 'notify_entity'
     data:
-      message: "⚠️ The device has been running for more than the specified duration."
+      message: "⚠️ The device has been running for more than the specified duration. You can choose to turn it off or reset the timer."
+      data:
+        actions:
+          - action: "turn_off_device"
+            title: "Turn Off Device"
+          - action: "reset_timer"
+            title: "Reset Timer"
+
+  - wait_for_trigger:
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: "turn_off_device"
+  - choose:
+      - conditions:
+          - condition: event
+            event_type: mobile_app_notification_action
+            event_data:
+              action: "turn_off_device"
+        sequence:
+          - service: homeassistant.turn_off
+            entity_id: !input 'device_entity'
+          - service: notify.notify
+            data:
+              message: "The device has been turned off."
+      - conditions:
+          - condition: event
+            event_type: mobile_app_notification_action
+            event_data:
+              action: "reset_timer"
+        sequence:
+          - service: timer.start
+            entity_id: timer.ac_running_timer
+          - service: notify.notify
+            data:
+              message: "The timer has been reset."
