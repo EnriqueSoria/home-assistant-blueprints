@@ -1,8 +1,8 @@
 blueprint:
-  name: Device On Reminder Loop
+  name: Device On Reminder Loop Until Off (Testable Delay)
   description: >
-    When a device is turned on, this automation waits X hours, then sends an actionable notification
-    that gives the option to turn the device off or delay for another X hours (looping until turned off).
+    When a device is turned on, wait X hours (supports fractions), then send an actionable notification
+    to turn off or delay. Loops until device is off.
   domain: automation
   input:
     target_device:
@@ -13,17 +13,17 @@ blueprint:
           domain: switch
     delay_hours:
       name: Delay Hours
-      description: Number of hours to wait before sending notification
-      default: 1
+      description: Number of hours to wait before sending the notification (supports decimals for testing)
+      default: 0.1
       selector:
         number:
-          min: 0.5
+          min: 0.01
           max: 24
-          step: 0.5
+          step: 0.01
           unit_of_measurement: hours
     notify_device:
       name: Notify Device
-      description: The device to send the actionable notification to
+      description: Device to receive the actionable notification (must be mobile app)
       selector:
         device:
           integration: mobile_app
@@ -32,6 +32,8 @@ mode: restart
 
 variables:
   delay_seconds: "{{ (delay_hours | float * 3600) | int }}"
+  target_entity: !input target_device
+  notify_target: !input notify_device
 
 trigger:
   - platform: state
@@ -40,24 +42,25 @@ trigger:
 
 action:
   - repeat:
-      while:
+      until:
         - condition: state
           entity_id: !input target_device
-          state: "on"
+          state: "off"
       sequence:
         - delay:
             seconds: "{{ delay_seconds }}"
+
         - service: notify.mobile_app_{{ device_id('notify_device') }}
           data:
-            message: "{{ state_attr(target_device, 'friendly_name') or target_device }} has been on for {{ delay_hours }} hours."
-            title: "Device Reminder"
+            message: "{{ state_attr(target_entity, 'friendly_name') or target_entity }} has been on for {{ delay_hours }} hours."
+            title: "Device Still On"
             data:
               actions:
                 - action: "TURN_OFF"
                   title: "Turn Off"
                 - action: "DELAY"
                   title: "Remind Me Later"
-              tag: "device-reminder-{{ target_device }}"
+              tag: "reminder-{{ target_entity }}"
 
         - wait_for_trigger:
             - platform: event
