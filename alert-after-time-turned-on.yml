@@ -27,7 +27,6 @@ mode: restart
 variables:
   delay_seconds: "{{ delay_hours | int }}"
   target_entity: !input target_device
-  notify_target: !input notify_device
 
 trigger:
   - platform: state
