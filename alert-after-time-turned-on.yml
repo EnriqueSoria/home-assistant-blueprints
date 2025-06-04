@@ -38,7 +38,7 @@ action:
 
       sequence:
         - delay:
-            seconds: {{ delay_hours }}
+            seconds: !input delay_hours
 
         - service: notify.notify
           data:
@@ -61,8 +61,6 @@ action:
               event_type: mobile_app_notification_action
               event_data:
                 action: DELAY
-          timeout: "01:00:00"
-          continue_on_timeout: true
 
         - choose:
             - conditions:
