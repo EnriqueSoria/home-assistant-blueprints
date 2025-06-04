@@ -45,21 +45,18 @@ action:
           action: "turn_off_device"
   - choose:
       - conditions:
-          - condition: event
-            event_type: mobile_app_notification_action
-            event_data:
-              action: "turn_off_device"
+          - condition: template
+            value_template: "{{ trigger.event.data.action == 'turn_off_device' }}"
         sequence:
           - service: homeassistant.turn_off
             entity_id: !input 'device_entity'
           - service: notify.notify
             data:
               message: "The device has been turned off."
+
       - conditions:
-          - condition: event
-            event_type: mobile_app_notification_action
-            event_data:
-              action: "reset_timer"
+          - condition: template
+            value_template: "{{ trigger.event.data.action == 'reset_timer' }}"
         sequence:
           - service: timer.start
             entity_id: timer.ac_running_timer
