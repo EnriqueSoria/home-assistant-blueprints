@@ -25,7 +25,7 @@ blueprint:
 mode: restart
 
 variables:
-  delay_seconds: "{{ delay_hours | int }}"
+  delay_seconds: delay_hours
   target_entity: !input target_device
 
 trigger:
@@ -42,7 +42,7 @@ action:
 
       sequence:
         - delay:
-            seconds: "{{ delay_seconds }}"
+            seconds: delay_seconds
 
         - service: notify.notify
           data:
