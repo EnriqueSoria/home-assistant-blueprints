@@ -18,12 +18,6 @@ blueprint:
           min: 1
           max: 60
           unit_of_measurement: seconds
-    notification_entity:
-      name: Notification Service
-      description: The service to send the notification
-      selector:
-        entity:
-          domain: notify
 
 trigger:
   - platform: state
@@ -33,7 +27,7 @@ trigger:
       seconds: !input delay_seconds
 
 action:
-  - service: !input notification_entity
+  - service: notify.notify
     data:
       message: >-
         ⚠️ The device has been running for more than {{ delay_seconds }} seconds. You
