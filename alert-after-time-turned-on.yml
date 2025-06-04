@@ -1,65 +1,84 @@
 blueprint:
   name: Notification to turn off device after some time turned on
-  description: Sends an alert when a device has been running for more than a specified amount of time. Includes options to turn off the device or reset the timer.
+  description: Sends an actionable notification after a device has been on for a specified duration.
   domain: automation
   input:
-    device_entity:
-      name: Device Entity
-      description: The entity of the device to monitor (e.g., climate.living_room_ac, switch.fan_living_room)
+    device:
+      name: Device
+      description: The device to monitor
       selector:
         entity:
-    trigger_state:
-      name: Trigger State
-      description: The state the device needs to be in to start the timer (e.g., 'on', 'cooling', 'heating', etc.)
-      default: 'on'
+          domain: light
+    delay_seconds:
+      name: Delay (Seconds)
+      description: The duration (in seconds) the device must be on before sending the notification.
+      default: 3
       selector:
-        text:
-    device_timer_duration:
-      name: Timer Duration
-      description: The time before the alert triggers (default 3 hours)
-      default: '03:00:00'
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: seconds
+    notification_entity:
+      name: Notification Service
+      description: The service to send the notification
       selector:
-        duration: {}
+        entity:
+          domain: notify
 
 trigger:
   - platform: state
-    entity_id: !input 'device_entity'
-    to: !input 'trigger_state'
-    for: !input 'device_timer_duration'
+    entity_id: !input device
+    to: "on"
+    for:
+      seconds: !input delay_seconds
 
 action:
-  - service: notify.notify
+  - service: !input notification_entity
     data:
-      message: "⚠️ The device has been running for more than the specified duration. You can choose to turn it off or reset the timer."
+      message: >-
+        ⚠️ The device has been running for more than {{ delay_seconds }} seconds. You
+        can choose to turn it off or reset the timer.
       data:
         actions:
-          - action: "turn_off_device"
-            title: "Turn Off Device"
-          - action: "reset_timer"
-            title: "Reset Timer"
+          - action: turn_off_device
+            title: Turn Off Device
+          - action: reset_timer
+            title: Reset Timer
 
   - wait_for_trigger:
       - platform: event
         event_type: mobile_app_notification_action
         event_data:
-          action: "turn_off_device"
+          action: turn_off_device
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: reset_timer
+
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ trigger.event_data.action == 'turn_off_device' }}"
+            value_template: "{{ trigger.event.data.action == 'turn_off_device' }}"
         sequence:
           - service: homeassistant.turn_off
-            entity_id: !input 'device_entity'
-          - service: notify.notify
+            entity_id: !input device
+          - service: !input notification_entity
             data:
               message: "The device has been turned off."
-
       - conditions:
           - condition: template
-            value_template: "{{ trigger.event_data.action == 'reset_timer' }}"
+            value_template: "{{ trigger.event.data.action == 'reset_timer' }}"
         sequence:
-          - service: timer.start
-            entity_id: timer.ac_running_timer
-          - service: notify.notify
+          - service: automation.trigger
+            target:
+              entity_id: automation.notification_to_turn_off_device_after_some_time_turned_on
+          - service: !input notification_entity
             data:
-              message: "The timer has been reset."
+              message: >-
+                ⚠️ The timer has been reset. The device has been running for more than the specified duration again.
+              data:
+                actions:
+                  - action: turn_off_device
+                    title: Turn Off Device
+                  - action: reset_timer
+                    title: Reset Timer
