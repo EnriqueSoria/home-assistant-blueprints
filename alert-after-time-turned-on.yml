@@ -1,6 +1,6 @@
 blueprint:
   name: Notification to turn off device after a specified time
-  description: This blueprint allows you to set a timer to turn off a device (either a light or climate device) after a specified time, with notification and postponing options.
+  description: This blueprint allows you to set a timer to turn off a device after a specified time, with notification and postponing options.
   domain: automation
   input:
     device:
@@ -8,12 +8,10 @@ blueprint:
       description: The device that should be turned off after some time.
       selector:
         entity:
-          domain: 
-            - light
-            - climate
+          domain: light
     trigger_state:
       name: State to trigger the timer
-      description: The state change to trigger the timer (usually "on" for light or "heat" for climate).
+      description: The state change to trigger the timer (usually "on").
       default: "on"
       selector:
         text:
@@ -26,7 +24,12 @@ blueprint:
           min: 1
           max: 3600
           unit_of_measurement: seconds
-
+    notification_service:
+      name: Notification Service
+      description: The service to use for notifications.
+      default: notify.notify
+      selector:
+        text:
   
 trigger:
   - platform: state
@@ -48,7 +51,7 @@ action:
                   title: Turn Off Device
                 - action: postpone_reminder
                   title: Postpone reminder
-          action: notify.notify
+          action: !input 'notification_service'
         - wait_for_trigger:
             - event_type: mobile_app_notification_action
               event_data:
@@ -70,5 +73,5 @@ action:
           type: is_off
           device_id: !input 'device'
           entity_id: !input 'device'
-          domain: !input 'device'
+          domain: light
 mode: restart
