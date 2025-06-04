@@ -28,7 +28,7 @@ trigger:
     for: !input 'device_timer_duration'
 
 action:
-  - service: !input 'notify_entity'
+  - service: notify.notify
     data:
       message: "⚠️ The device has been running for more than the specified duration. You can choose to turn it off or reset the timer."
       data:
