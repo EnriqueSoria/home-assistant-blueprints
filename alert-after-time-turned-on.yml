@@ -14,12 +14,6 @@ blueprint:
       default: 'on'
       selector:
         text:
-    notify_entity:
-      name: Notify Entity
-      description: The notification service to alert when the device runs for the specified duration
-      selector:
-        entity:
-          domain: notify
     device_timer_duration:
       name: Timer Duration
       description: The time before the alert triggers (default 3 hours)
