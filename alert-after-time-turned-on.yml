@@ -88,5 +88,5 @@ action:
           type: is_off
           device_id: !input 'device'
           entity_id: !input 'device'
-          domain: !input 'device' | string
+          domain: !input 'device'
 mode: restart
