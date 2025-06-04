@@ -1,78 +1,92 @@
 blueprint:
-  name: Notification to turn off device after some time turned on
-  description: Sends an actionable notification after a device has been on for a specified duration.
+  name: Notification to turn off device after a specified time
+  description: This blueprint allows you to set a timer to turn off a device (either a light or climate device) after a specified time, with notification and postponing options.
   domain: automation
   input:
     device:
-      name: Device
-      description: The device to monitor
+      name: Device to control
+      description: The device that should be turned off after some time.
       selector:
         entity:
-          domain: light
-    delay_seconds:
-      name: Delay (Seconds)
-      description: The duration (in seconds) the device must be on before sending the notification.
-      default: 3
+          domain: 
+            - light
+            - climate
+    trigger_state:
+      name: State to trigger the timer
+      description: The state change to trigger the timer (usually "on" for light or "heat" for climate).
+      default: "on"
+      selector:
+        text:
+    timer_duration:
+      name: Timer Duration
+      description: How long (in seconds) before the reminder is triggered.
+      default: 180
       selector:
         number:
           min: 1
-          max: 60
+          max: 3600
           unit_of_measurement: seconds
-
+    notification_service:
+      name: Notification Service
+      description: The service to use for notifications.
+      default: notify.notify
+      selector:
+        text:
+  
 trigger:
   - platform: state
-    entity_id: !input device
-    to: "on"
-    for:
-      seconds: !input delay_seconds
+    entity_id: !input 'device'
+    to: !input 'trigger_state'
 
 action:
-  - service: notify.notify
-    data:
-      message: >-
-        ⚠️ The device has been running for more than {{ delay_seconds }} seconds. You
-        can choose to turn it off or reset the timer.
-      data:
-        actions:
-          - action: turn_off_device
-            title: Turn Off Device
-          - action: reset_timer
-            title: Reset Timer
-
-  - wait_for_trigger:
-      - platform: event
-        event_type: mobile_app_notification_action
-        event_data:
-          action: turn_off_device
-      - platform: event
-        event_type: mobile_app_notification_action
-        event_data:
-          action: reset_timer
-
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ trigger.event.data.action == 'turn_off_device' }}"
-        sequence:
-          - service: homeassistant.turn_off
-            entity_id: !input device
-          - service: notify.notify
+  - repeat:
+      sequence:
+        - delay: 
+            seconds: !input 'timer_duration'
+        - data:
+            message: >-
+              ⚠️ The device has been running for more than {{ delay_seconds }} seconds.
+              You can choose to turn it off or reset the timer.
             data:
-              message: "The device has been turned off."
-      - conditions:
-          - condition: template
-            value_template: "{{ trigger.event.data.action == 'reset_timer' }}"
-        sequence:
-          - service: automation.trigger
-            target:
-              entity_id: automation.notification_to_turn_off_device_after_some_time_turned_on
-          - service: notify.notify
-            data:
-              message: >-
-                ⚠️ The timer has been reset. The device has been running for more than the specified duration again.
-              data:
-                actions:
-                  - action: turn_off_device
-                    title: Turn Off Device
-                  - action: reset_timer
-                    title: Reset Timer
+              actions:
+                - action: turn_off_device
+                  title: Turn Off Device
+                - action: postpone_reminder
+                  title: Postpone reminder
+          action: !input 'notification_service'
+        - wait_for_trigger:
+            - event_type: mobile_app_notification_action
+              event_data:
+                action: turn_off_device
+              trigger: event
+            - event_type: mobile_app_notification_action
+              event_data:
+                action: postpone_reminder
+              trigger: event
+          continue_on_timeout: false
+        - if:
+            - condition: template
+              value_template: "{{ wait.trigger.event.data.action == 'turn_off_device' }}"
+          then:
+            - choose:
+                - conditions:
+                    - condition: domain
+                      entity_id: !input 'device'
+                      domain: light
+                  sequence:
+                    - entity_id: !input 'device'
+                      action: homeassistant.turn_off
+                - conditions:
+                    - condition: domain
+                      entity_id: !input 'device'
+                      domain: climate
+                  sequence:
+                    - entity_id: !input 'device'
+                      action: climate.turn_off
+      until:
+        - condition: device
+          type: is_off
+          device_id: !input 'device'
+          entity_id: !input 'device'
+          domain: !input 'device' | string
+mode: restart
