@@ -46,7 +46,7 @@ action:
 
         - service: notify.notify
           data:
-            message: "{{ state_attr(target_entity, 'friendly_name') or target_entity }} has been on for {{ delay_hours }} hours."
+            message: "{{ state_attr(target_device, 'friendly_name') or target_device }} has been on for {{ delay_hours }} hours."
             title: "Device Still On"
             data:
               actions:
