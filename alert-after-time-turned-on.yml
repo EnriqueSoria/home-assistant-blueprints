@@ -1,0 +1,38 @@
+blueprint:
+  name: Device Usage Alert After 3 Hours
+  description: Sends an alert when a device has been running for more than a specified amount of time.
+  domain: automation
+  input:
+    device_entity:
+      name: Device Entity
+      description: The entity of the device to monitor (e.g., climate.living_room_ac, switch.fan_living_room)
+      selector:
+        entity:
+    trigger_state:
+      name: Trigger State
+      description: The state the device needs to be in to start the timer (e.g., 'on', 'cooling', 'heating', etc.)
+      default: 'on'
+      selector:
+        text:
+    notify_entity:
+      name: Notify Entity
+      description: The notification service to alert when the device runs for the specified duration
+      selector:
+        entity:
+    device_timer_duration:
+      name: Timer Duration
+      description: The time before the alert triggers (default 3 hours)
+      default: '03:00:00'
+      selector:
+        duration: {}
+
+trigger:
+  - platform: state
+    entity_id: !input 'device_entity'
+    to: !input 'trigger_state'
+    for: !input 'device_timer_duration'
+
+action:
+  - service: !input 'notify_entity'
+    data:
+      message: "⚠️ The device has been running for more than the specified duration."
